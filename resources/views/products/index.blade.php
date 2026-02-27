@@ -77,10 +77,10 @@
 </div>
 
 <div class="card mb-6">
-    <div class="card-header flex items-center justify-between">
+        <div class="card-header flex items-center justify-between">
         <h3 class="text-lg font-semibold text-gray-900">Daftar Produk</h3>
         <div class="text-sm text-gray-600">
-            Menampilkan {{ $products->count() }} dari {{ $products->total() }} produk
+            Menampilkan {{ $products->firstItem() ?? 0 }}-{{ $products->lastItem() ?? 0 }} dari {{ $products->total() }} produk
         </div>
     </div>
     <div class="card-body">
@@ -211,7 +211,7 @@
         </div>
         @endif
         
-        <div class="mt-6">
+        <div class="mt-6 pagination">
             {{ $products->links() }}
         </div>
     </div>
@@ -585,6 +585,233 @@
     .dark-mode input[readonly] {
         background-color: #374151 !important;
         color: #d1d5db !important;
+    }
+    
+    /* Pagination styles - Fixed to prevent overflow */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 1.5rem;
+        max-width: 100%;
+        overflow: hidden;
+    }
+    
+    .pagination > nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.25rem;
+        max-width: 100%;
+    }
+    
+    .pagination .flex {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.25rem;
+        max-width: 100%;
+    }
+    
+    .pagination .hidden {
+        display: none;
+    }
+    
+    .pagination .items-center {
+        align-items: center;
+    }
+    
+    .pagination .justify-between {
+        justify-content: space-between;
+    }
+    
+    .pagination .gap-1 {
+        gap: 0.25rem;
+    }
+    
+    .pagination .-mt-px {
+        margin-top: -1px;
+    }
+    
+    .pagination .relative {
+        position: relative;
+    }
+    
+    .pagination .inline-flex {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.5rem;
+        height: 2.5rem;
+    }
+    
+    .pagination .items-center {
+        align-items: center;
+    }
+    
+    .pagination .px-4 {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .pagination .py-2 {
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+    
+    .pagination .border {
+        border-width: 1px;
+        border-style: solid;
+    }
+    
+    .pagination .border-gray-300 {
+        border-color: #d1d5db;
+    }
+    
+    .pagination .bg-white {
+        background-color: #ffffff;
+    }
+    
+    .pagination .text-gray-500 {
+        color: #6b7280;
+    }
+    
+    .pagination .text-gray-700 {
+        color: #374151;
+    }
+    
+    .pagination .hover\:text-gray-500:hover {
+        color: #6b7280;
+    }
+    
+    .pagination .hover\:bg-gray-50:hover {
+        background-color: #f9fafb;
+    }
+    
+    .pagination .focus\:z-10:focus {
+        z-index: 10;
+    }
+    
+    .pagination .focus\:outline-none:focus {
+        outline: 2px solid transparent;
+        outline-offset: 2px;
+    }
+    
+    .pagination .focus\:ring-2:focus {
+        --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+        --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+        box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+    }
+    
+    .pagination .focus\:ring-blue-500:focus {
+        --tw-ring-color: #3b82f6;
+    }
+    
+    .pagination .active\:bg-blue-50:active {
+        background-color: #eff6ff;
+    }
+    
+    .pagination .active\:text-blue-600:active {
+        color: #2563eb;
+    }
+    
+    /* Pagination link styles */
+    .pagination a,
+    .pagination span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.5rem;
+        height: 2.5rem;
+        padding: 0.25rem 0.75rem;
+        border: 1px solid #d1d5db;
+        background-color: #ffffff;
+        color: #374151;
+        font-size: 0.875rem;
+        font-weight: 500;
+        text-decoration: none;
+        border-radius: 0.375rem;
+        transition: all 0.2s;
+    }
+    
+    .pagination a:hover {
+        background-color: #f9fafb;
+        border-color: #9ca3af;
+        color: #1f2937;
+    }
+    
+    .pagination .active span {
+        background-color: #3b82f6;
+        border-color: #3b82f6;
+        color: #ffffff;
+        font-weight: 600;
+    }
+    
+    .pagination .disabled span {
+        background-color: #f3f4f6;
+        border-color: #e5e7eb;
+        color: #9ca3af;
+        cursor: not-allowed;
+    }
+    
+    /* Dark mode pagination styles */
+    .dark-mode .pagination .border-gray-300 {
+        border-color: #4b5563;
+    }
+    
+    .dark-mode .pagination .bg-white {
+        background-color: #1f2937;
+    }
+    
+    .dark-mode .pagination .text-gray-500 {
+        color: #9ca3af;
+    }
+    
+    .dark-mode .pagination .text-gray-700 {
+        color: #d1d5db;
+    }
+    
+    .dark-mode .pagination .hover\:text-gray-500:hover {
+        color: #9ca3af;
+    }
+    
+    .dark-mode .pagination .hover\:bg-gray-50:hover {
+        background-color: #374151;
+    }
+    
+    .dark-mode .pagination .active\:bg-blue-50:active {
+        background-color: #1e3a8a;
+    }
+    
+    .dark-mode .pagination .active\:text-blue-600:active {
+        color: #60a5fa;
+    }
+    
+    .dark-mode .pagination a,
+    .dark-mode .pagination span {
+        border-color: #4b5563;
+        background-color: #1f2937;
+        color: #d1d5db;
+    }
+    
+    .dark-mode .pagination a:hover {
+        background-color: #374151;
+        border-color: #6b7280;
+        color: #f3f4f6;
+    }
+    
+    .dark-mode .pagination .active span {
+        background-color: #3b82f6;
+        border-color: #3b82f6;
+        color: #ffffff;
+    }
+    
+    .dark-mode .pagination .disabled span {
+        background-color: #374151;
+        border-color: #4b5563;
+        color: #6b7280;
     }
 </style>
 

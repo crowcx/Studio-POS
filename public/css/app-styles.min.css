@@ -1637,6 +1637,15 @@ video {
   transition-duration: 200ms;
 }
 
+/* Inter Font Face - Local File */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('../fonts/inter.ttf') format('truetype');
+}
+
 /* Main CSS Styles for Studio Foto POS (will be overwritten) */
 
 * {
