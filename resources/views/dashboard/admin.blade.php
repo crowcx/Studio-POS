@@ -220,7 +220,15 @@
                         <td>{{ $transaction->user->name }}</td>
                         <td>
                             <div class="font-medium">{{ $transaction->customer_name ?? 'Pelanggan Umum' }}</div>
-                            <div class="text-sm text-gray-600">{{ ucfirst($transaction->customer_type) }}</div>
+                            <div class="text-sm text-gray-600">
+                                @if($transaction->customer_type === 'agen1')
+                                    Agen Reseller
+                                @elseif($transaction->customer_type === 'agen2')
+                                    Agen Grosir
+                                @else
+                                    {{ ucfirst($transaction->customer_type) }}
+                                @endif
+                            </div>
                         </td>
                         <td class="text-right font-medium text-green-600">Rp {{ number_format($transaction->total_amount, 0, ',', '.') }}</td>
                         <td>

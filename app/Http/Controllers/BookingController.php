@@ -69,13 +69,60 @@ class BookingController extends Controller
             'status' => 'pending',
         ]);
 
+        \App\Models\AuditLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'booking added',
+            'details' => $booking->toArray()
+        ]);
+
         return redirect()->route('booking.index')->with('success', 'Booking berhasil dibuat!');
     }
 
     // Menampilkan daftar booking
-    public function index()
+    public function index(Request $request)
     {
-        $bookings = Booking::with('user')->latest()->get();
+        $query = Booking::with('user');
+
+        // Filter: Pencarian (Nama Pelanggan & Kode Booking)
+        if ($request->has('search') && $request->search != '') {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('customer_name', 'like', "%{$search}%")
+                  ->orWhere('booking_code', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter: Kategori Studio
+        if ($request->has('category') && $request->category != '') {
+            $query->where('studio_category', $request->category);
+        }
+
+        // Filter: Status
+        if ($request->has('status') && $request->status != '') {
+            $query->where('status', $request->status);
+        }
+
+        // Filter: Bulan dan Tahun
+        if ($request->has('month') && $request->month != '') {
+            $query->whereMonth('booking_date', $request->month);
+        }
+        if ($request->has('year') && $request->year != '') {
+            $query->whereYear('booking_date', $request->year);
+        }
+
+        // Sorting
+        $sortField = $request->input('sort', 'created_at');
+        $sortDirection = $request->input('direction', 'desc');
+        
+        $allowedSorts = ['customer_name', 'studio_category', 'package_type', 'booking_date', 'created_at'];
+        if (in_array($sortField, $allowedSorts)) {
+            $query->orderBy($sortField, $sortDirection);
+        } else {
+            $query->latest();
+        }
+
+        $bookings = $query->paginate(15)->withQueryString();
+        
         return view('booking.index', compact('bookings'));
     }
 
@@ -130,6 +177,7 @@ class BookingController extends Controller
         $remainingAmount = $totalAmount - $validated['down_payment'];
 
         // Update booking
+        $before = $booking->toArray();
         $booking->update([
             'customer_name' => $validated['customer_name'],
             'customer_phone' => $validated['customer_phone'],
@@ -147,6 +195,15 @@ class BookingController extends Controller
             'notes' => $validated['notes'],
         ]);
 
+        \App\Models\AuditLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'booking edited',
+            'details' => [
+                'before' => $before,
+                'after' => $booking->fresh()->toArray()
+            ]
+        ]);
+
         return redirect()->route('booking.index')->with('success', 'Booking berhasil diperbarui!');
     }
 
@@ -159,42 +216,31 @@ class BookingController extends Controller
             // Untuk sekarang hanya menghapus booking
         }
 
+        \App\Models\AuditLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'booking deleted',
+            'details' => $booking->toArray()
+        ]);
+
         $booking->delete();
         return redirect()->route('booking.index')->with('success', 'Booking berhasil dihapus!');
     }
 
-    // Mark as done (menjadi transaksi) - REVISI: gunakan total_amount (harga full)
+    // Mark as done (hanya selesaikan booking)
     public function markAsDone(Booking $booking)
     {
-        // Buat transaksi dari booking dengan harga FULL (total_amount)
-        $transaction = Transaction::create([
-            'invoice_id' => Transaction::generateInvoiceId(),
-            'user_id' => Auth::id(),
-            'customer_name' => $booking->customer_name,
-            'customer_phone' => $booking->customer_phone,
-            'customer_type' => 'umum',
-            'payment_method' => $booking->payment_method, // Gunakan payment_method dari booking
-            'total_amount' => $booking->total_amount, // REVISI: gunakan total_amount bukan remaining_amount
-            'status' => 'paid',
-        ]);
-
-        // Buat item transaksi untuk booking
-        \App\Models\TransactionItem::create([
-            'transaction_id' => $transaction->id,
-            'product_id' => null, // Tidak ada produk fisik untuk booking
-            'product_name' => $booking->studio_category_label . ' - ' . $booking->package_type,
-            'quantity' => 1,
-            'price_at_transaction' => $booking->total_amount,
-            'subtotal' => $booking->total_amount,
-        ]);
-
-        // Update booking status dan link ke transaksi
+        // Murni hanya menyelesaikan status booking, karena data akan di-input oleh kasir sendiri via 'Manajemen Produk'
         $booking->update([
             'status' => 'completed',
-            'transaction_id' => $transaction->id,
         ]);
 
-        return redirect()->route('booking.index')->with('success', 'Booking telah diselesaikan dan menjadi transaksi dengan harga full!');
+        \App\Models\AuditLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'booking completed',
+            'details' => $booking->toArray()
+        ]);
+
+        return redirect()->route('booking.index')->with('success', 'Booking telah diselesaikan!');
     }
 
     // Menampilkan invoice dalam iframe

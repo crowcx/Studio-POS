@@ -94,6 +94,7 @@ class ProductController extends Controller
     // Menampilkan form tambah produk
     public function create()
     {
+        if (Auth::user()->role === 'employee') abort(403, 'Hanya Admin atau Staff Gudang yang dapat menambah produk.');
         $categories = Category::all();
         return view('products.create', compact('categories'));
     }
@@ -101,6 +102,8 @@ class ProductController extends Controller
     // Menyimpan produk baru ke database
     public function store(Request $request)
     {
+        if (Auth::user()->role === 'employee') abort(403, 'Hanya Admin atau Staff Gudang yang dapat menambah produk.');
+
         $request->validate([
             'name'          => 'required|string|max:255',
             'category_id'   => 'required|exists:categories,id',
@@ -113,10 +116,20 @@ class ProductController extends Controller
             'price_agent2'  => 'required|numeric|min:0',
         ]);
 
-        Product::create($request->all());
+        $productData = $request->all();
+        $productData['last_edited_by'] = Auth::user()->name;
 
-        // Clear product cache after creation
+        $product = Product::create($productData);
+
+        \App\Models\AuditLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'product added',
+            'details' => $product->toArray()
+        ]);
+
+        // Clear product caches after creation
         cache()->forget('products.available');
+        cache()->forget('products.popular');
 
         return redirect()->route('products.index')
             ->with('success', 'Produk berhasil ditambahkan.');
@@ -125,6 +138,7 @@ class ProductController extends Controller
     // Menampilkan form edit produk
     public function edit(Product $product)
     {
+        if (Auth::user()->role === 'employee') abort(403, 'Hanya Admin atau Staff Gudang yang dapat mengedit produk.');
         $categories = Category::all();
         return view('products.edit', compact('product', 'categories'));
     }
@@ -132,6 +146,8 @@ class ProductController extends Controller
     // Mengupdate data produk
     public function update(Request $request, Product $product)
     {
+        if (Auth::user()->role === 'employee') abort(403, 'Hanya Admin atau Staff Gudang yang dapat mengedit produk.');
+
         $validationRules = [
             'name'          => 'required|string|max:255',
             'category_id'   => 'required|exists:categories,id',
@@ -173,6 +189,8 @@ class ProductController extends Controller
         // Hitung stok akhir
         $newStock = $currentStock + $stockAddition - $stockReduction;
         
+        $before = $product->toArray();
+
         // Siapkan data untuk update
         $updateData = [
             'name' => $request->name,
@@ -183,7 +201,21 @@ class ProductController extends Controller
             'price_general' => $request->price_general,
             'price_agent1' => $request->price_agent1,
             'price_agent2' => $request->price_agent2,
+            'last_edited_by' => Auth::user()->name,
+            'previous_stock' => $currentStock,
         ];
+
+        // Proteksi tambahan: Staff Gudang hanya bisa update stok
+        if (Auth::user()->role === 'staff gudang') {
+            $updateData['name'] = $product->name;
+            $updateData['category_id'] = $product->category_id;
+            $updateData['type_color'] = $product->type_color;
+            $updateData['barcode'] = $product->barcode;
+            $updateData['price_general'] = $product->price_general;
+            $updateData['price_agent1'] = $product->price_agent1;
+            $updateData['price_agent2'] = $product->price_agent2;
+            // Harga beli sudah terproteksi di bawah (admin only)
+        }
         
         // Hanya admin yang bisa mengubah harga beli
         if (Auth::check() && Auth::user()->role === 'admin') {
@@ -192,8 +224,29 @@ class ProductController extends Controller
         
         $product->update($updateData);
 
-        // Clear product cache after update
+        \App\Models\AuditLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'product edited',
+            'details' => [
+                'before' => $before,
+                'after' => $product->fresh()->toArray()
+            ]
+        ]);
+
+        if ($stockAddition > 0 || $stockReduction > 0) {
+            \App\Models\AuditLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'stock edited',
+                'details' => [
+                    'before' => ['stock' => $currentStock],
+                    'after' => ['stock' => $newStock]
+                ]
+            ]);
+        }
+
+        // Clear product caches after update
         cache()->forget('products.available');
+        cache()->forget('products.popular');
 
         return redirect()->route('products.index')
             ->with('success', 'Perubahan disimpan! Stok berhasil diupdate: ' . 
@@ -205,10 +258,19 @@ class ProductController extends Controller
     // Menghapus produk
     public function destroy(Product $product)
     {
+        if (Auth::user()->role === 'employee') abort(403, 'Hanya Admin atau Staff Gudang yang dapat menghapus produk.');
+
+        \App\Models\AuditLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'product deleted',
+            'details' => $product->toArray()
+        ]);
+        
         $product->delete();
 
-        // Clear product cache after deletion
+        // Clear product caches after deletion
         cache()->forget('products.available');
+        cache()->forget('products.popular');
 
         return redirect()->route('products.index')
             ->with('success', 'Barang telah dihapus!');

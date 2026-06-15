@@ -88,9 +88,13 @@
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-badge text-xs font-medium bg-purple-100 text-purple-800">
                                 Admin
                             </span>
+                            @elseif($employee->role === 'staff gudang')
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-badge text-xs font-medium bg-green-100 text-green-800">
+                                Staff Gudang
+                            </span>
                             @else
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-badge text-xs font-medium bg-blue-100 text-blue-800">
-                                Karyawan
+                                Kasir
                             </span>
                             @endif
                         </td>
@@ -154,8 +158,9 @@
                 
                 <div class="form-group">
                     <label class="form-label">Role</label>
-                    <select name="role" class="form-control">
-                        <option value="employee">Karyawan</option>
+                    <select name="role" class="form-control" required>
+                        <option value="employee">Kasir</option>
+                        <option value="staff gudang">Staff Gudang</option>
                         <option value="admin">Admin</option>
                     </select>
                 </div>

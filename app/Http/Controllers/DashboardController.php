@@ -20,21 +20,27 @@ class DashboardController extends Controller
         $startOfWeek = Carbon::now()->startOfWeek();
         $endOfWeek = Carbon::now()->endOfWeek();
 
-        // Jumlah order hari ini (hanya transaksi user ini)
+        // Jumlah order hari ini (hanya transaksi user ini, yang tidak dibatalkan)
         $todayOrders = Transaction::where('user_id', $user->id)
             ->whereDate('created_at', $today)
+            ->where('status', '!=', 'cancelled')
             ->count();
 
-        // Jumlah order minggu ini (hanya transaksi user ini)
+        // Jumlah order minggu ini (hanya transaksi user ini, yang tidak dibatalkan)
         $weekOrders = Transaction::where('user_id', $user->id)
             ->whereBetween('created_at', [$startOfWeek, $endOfWeek])
+            ->where('status', '!=', 'cancelled')
             ->count();
 
         // Omset minggu ini (hanya transaksi user ini)
+        // Hitung total_amount jika lunas, dan down_payment jika pending
         $weekRevenue = Transaction::where('user_id', $user->id)
             ->whereBetween('created_at', [$startOfWeek, $endOfWeek])
-            ->where('status', 'paid')
-            ->sum('total_amount');
+            ->where('status', '!=', 'cancelled')
+            ->get()
+            ->sum(function($t) {
+                return $t->status === 'pending' ? $t->down_payment : $t->total_amount;
+            });
 
         // Produk dengan stok rendah (kurang dari 10)
         $lowStockProducts = Product::where('stock', '<', 10)
@@ -65,30 +71,46 @@ class DashboardController extends Controller
         $startOfWeek = Carbon::now()->startOfWeek();
         $endOfWeek = Carbon::now()->endOfWeek();
 
-        // Jumlah order hari ini (semua transaksi)
-        $todayOrders = Transaction::whereDate('created_at', $today)->count();
+        // Jumlah order hari ini (semua transaksi yang tidak dibatalkan)
+        $todayOrders = Transaction::whereDate('created_at', $today)
+            ->where('status', '!=', 'cancelled')
+            ->count();
 
-        // Jumlah order minggu ini (semua transaksi)
-        $weekOrders = Transaction::whereBetween('created_at', [$startOfWeek, $endOfWeek])->count();
+        // Jumlah order minggu ini (semua transaksi yang tidak dibatalkan)
+        $weekOrders = Transaction::whereBetween('created_at', [$startOfWeek, $endOfWeek])
+            ->where('status', '!=', 'cancelled')
+            ->count();
 
         // Omset minggu ini (semua transaksi)
         $weekRevenue = Transaction::whereBetween('created_at', [$startOfWeek, $endOfWeek])
-            ->where('status', 'paid')
-            ->sum('total_amount');
+            ->where('status', '!=', 'cancelled')
+            ->get()
+            ->sum(function($t) {
+                return $t->status === 'pending' ? $t->down_payment : $t->total_amount;
+            });
 
-        // Statistik karyawan (performance)
-        $employeePerformance = User::where('role', 'employee')
+        // Statistik karyawan (performance) - termasuk employee dan staff gudang
+        $employeePerformance = User::whereIn('role', ['employee', 'staff gudang'])
             ->withCount(['transactions as today_transactions' => function ($query) use ($today) {
-                $query->whereDate('created_at', $today);
+                $query->whereDate('created_at', $today)
+                    ->where('status', '!=', 'cancelled');
             }])
             ->withCount(['transactions as week_transactions' => function ($query) use ($startOfWeek, $endOfWeek) {
-                $query->whereBetween('created_at', [$startOfWeek, $endOfWeek]);
-            }])
-            ->withSum(['transactions as week_revenue' => function ($query) use ($startOfWeek, $endOfWeek) {
                 $query->whereBetween('created_at', [$startOfWeek, $endOfWeek])
-                    ->where('status', 'paid');
-            }], 'total_amount')
-            ->get();
+                    ->where('status', '!=', 'cancelled');
+            }])
+            ->get()
+            ->map(function($user) use ($startOfWeek, $endOfWeek) {
+                // Hitung revenue secara manual karena sum logic yang kompleks (DP vs Total)
+                $user->week_revenue = Transaction::where('user_id', $user->id)
+                    ->whereBetween('created_at', [$startOfWeek, $endOfWeek])
+                    ->where('status', '!=', 'cancelled')
+                    ->get()
+                    ->sum(function($t) {
+                        return $t->status === 'pending' ? $t->down_payment : $t->total_amount;
+                    });
+                return $user;
+            });
 
         // Produk dengan stok rendah
         $lowStockProducts = Product::where('stock', '<', 10)
@@ -102,16 +124,18 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
-        // Statistik penjualan per kategori
+        // Statistik penjualan per kategori (hanya transaksi yang tidak dibatalkan)
         $categorySales = DB::table('transaction_items')
             ->join('products', 'transaction_items.product_id', '=', 'products.id')
             ->join('categories', 'products.category_id', '=', 'categories.id')
+            ->join('transactions', 'transaction_items.transaction_id', '=', 'transactions.id')
             ->select(
                 'categories.name as category_name',
                 DB::raw('SUM(transaction_items.quantity) as total_quantity'),
                 DB::raw('SUM(transaction_items.subtotal) as total_revenue')
             )
             ->whereBetween('transaction_items.created_at', [$startOfWeek, $endOfWeek])
+            ->where('transactions.status', '!=', 'cancelled')
             ->groupBy('categories.id', 'categories.name')
             ->orderBy('total_revenue', 'desc')
             ->get();

@@ -54,8 +54,8 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="form-group"><label>Harga Beli (Modal)</label><input type="number" name="buy_price" required></div>
                 <div class="form-group"><label>Harga Umum</label><input type="number" name="price_general" required></div>
-                <div class="form-group"><label>Harga Agen 1</label><input type="number" name="price_agent1" required></div>
-                <div class="form-group"><label>Harga Agen 2</label><input type="number" name="price_agent2" required></div>
+                <div class="form-group"><label>Harga Reseller</label><input type="number" name="price_agent1" required></div>
+                <div class="form-group"><label>Harga Grosir</label><input type="number" name="price_agent2" required></div>
             </div>
 
             <br>

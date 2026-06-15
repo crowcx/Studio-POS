@@ -30,6 +30,7 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $hidden = [
+        'pin',
         'password',
         'remember_token',
     ];
@@ -57,5 +58,11 @@ class User extends Authenticatable
     public function transactions()
     {
         return $this->hasMany(Transaction::class);
+    }
+
+    // Relationship dengan audit logs
+    public function auditLogs()
+    {
+        return $this->hasMany(AuditLog::class);
     }
 }

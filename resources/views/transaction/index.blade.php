@@ -4,9 +4,14 @@
 @section('page-title', 'Kasir')
 
 @section('header-actions')
-    <button type="button" class="btn btn-primary" onclick="openModal('productSearchModal')">
-        🔍 Cari Produk
-    </button>
+    <div class="flex gap-2">
+        <button type="button" class="btn btn-warning" onclick="syncProducts()">
+            <i class="fas fa-sync-alt"></i> <span class="hidden md:inline">Sinkron Data</span>
+        </button>
+        <button type="button" class="btn btn-primary" onclick="openModal('productSearchModal')">
+            🔍 Cari Produk
+        </button>
+    </div>
 @endsection
 
 @section('content')
@@ -33,8 +38,8 @@
                     <label class="form-label">Tipe Pelanggan</label>
                     <select name="customer_type" class="form-control" required>
                         <option value="umum">Umum</option>
-                        <option value="agen1">Agen 1</option>
-                        <option value="agen2">Agen 2</option>
+                        <option value="agen1">Agen Reseller</option>
+                        <option value="agen2">Agen Grosir</option>
                     </select>
                 </div>
                 
@@ -98,14 +103,14 @@
                     
                     <div class="text-center mt-6" id="emptyCartMessage">
                         <p class="text-gray-600 mb-4">Keranjang belanja masih kosong</p>
-                        <button type="button" class="btn btn-primary" onclick="openModal('productSearchModal')">
-                            + Tambah Produk
-                        </button>
                     </div>
                 </div>
             </div>
             
-            <div class="flex justify-end">
+            <div class="flex justify-end gap-2">
+                <button type="button" class="btn btn-primary text-lg px-8 py-3" onclick="openModal('productSearchModal')">
+                    + Tambah Produk
+                </button>
                 <button type="submit" class="btn btn-success text-lg px-8 py-3" id="checkoutButton" disabled>
                     💳 BAYAR SEKARANG
                 </button>
@@ -415,13 +420,70 @@
 </style>
 -->
 
+<!-- Transaction Details Modal (Receipt) -->
+<div class="modal" id="transactionDetailsModal">
+    <div class="modal-content" style="max-width: 400px; width: 100%;">
+        <div class="modal-header">
+            <h3 class="text-lg font-semibold text-gray-900">Struk Transaksi</h3>
+            <div class="flex gap-2">
+                <button type="button" class="btn btn-primary" onclick="printTransactionDetails()">
+                    <i class="fas fa-print mr-1"></i> Cetak
+                </button>
+                <button type="button" onclick="closeTransactionModal()" class="btn btn-danger">
+                    <i class="fas fa-times"></i> Tutup
+                </button>
+            </div>
+        </div>
+        <div class="modal-body" style="padding: 0;">
+            <div id="transactionDetailsContent" style="width: 100%;">
+                <!-- Details will be loaded here via Iframe -->
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     let cart = [];
-    let allProducts = JSON.parse('{!! json_encode($products) !!}');
-    let popularProducts = JSON.parse('{!! json_encode($popularProducts) !!}');
+    let allProducts = @json($products);
+    let popularProducts = @json($popularProducts);
     let selectedProduct = null;
-    
+
     // Load popular products on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadPopularProducts();
+    });
+
+    async function syncProducts() {
+        const syncBtn = document.querySelector('button[onclick="syncProducts()"]');
+        const originalContent = syncBtn.innerHTML;
+        syncBtn.disabled = true;
+        syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ...';
+
+        try {
+            const response = await fetch("{{ route('transaction.products.json') }}?refresh=1");
+            const data = await response.json();
+
+            if (data.success) {
+                allProducts = data.products;
+                popularProducts = data.popularProducts;
+                
+                // Reload section UI
+                loadPopularProducts();
+                
+                // If there are search results open, clear them
+                document.getElementById('searchResults').innerHTML = '';
+                document.getElementById('productSearchInput').value = '';
+                
+                alert('Data produk berhasil disinkronkan! (Terakhir: ' + data.server_time + ')');
+            }
+        } catch (error) {
+            console.error('Error syncing products:', error);
+            alert('Gagal menyinkronkan data.');
+        } finally {
+            syncBtn.disabled = false;
+            syncBtn.innerHTML = originalContent;
+        }
+    }
     function loadPopularProducts() {
         const popularProductsGrid = document.getElementById('popularProductsGrid');
         popularProductsGrid.innerHTML = '';
@@ -434,7 +496,7 @@
         popularProducts.forEach(product => {
             const price = getPriceForCustomerType(product);
             const productElement = document.createElement('div');
-            productElement.className = 'bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-all duration-200 hover:shadow-md';
+            productElement.className = 'bg-gray-50 rounded-md hover:bg-gray-100 cursor-pointer transition-all duration-200 hover:shadow-md';
             productElement.onclick = () => selectProduct(product);
             productElement.title = `Klik untuk menambahkan ${product.name}`;
             
@@ -444,7 +506,10 @@
                     <div class="text-gray-600 product-type truncate">${product.type_color || ''}</div>
                     <div class="mt-auto">
                         <div class="popular-product-price">Rp ${formatNumber(price)}</div>
-                        <div class="popular-product-stock">Stok: ${product.stock}</div>
+                        <div class="popular-product-stock flex justify-between">
+                            <span>Stok: ${product.display_stock}</span>
+                            ${product.stock <= 0 && !(['Jasa cetak', 'Jasa foto, edit, dan pemasangan'].includes(product.category?.name)) ? '<span class="text-red-500 font-bold text-xs">HABIS</span>' : ''}
+                        </div>
                     </div>
                 </div>
             `;
@@ -516,7 +581,8 @@
                     <div class="text-sm text-gray-600">
                         ${product.type_color || ''} 
                         ${product.barcode ? `• Barcode: ${product.barcode}` : ''}
-                        • Stok: ${product.stock}
+                        • Stok: ${product.display_stock}
+                        ${product.stock <= 0 && !(['Jasa cetak', 'Jasa foto, edit, dan pemasangan'].includes(product.category?.name)) ? '<span class="text-red-500 font-bold ml-1">STOK HABIS</span>' : ''}
                         ${matchInfo ? `<span class="text-xs bg-blue-100 text-blue-800 px-1 rounded ml-1">${matchInfo}</span>` : ''}
                     </div>
                 </div>
@@ -569,7 +635,9 @@
         const quantity = parseInt(document.getElementById('quantityInput').value);
         const customerType = document.querySelector('select[name="customer_type"]').value;
         
-        if (quantity > selectedProduct.stock) {
+        const isService = selectedProduct.category && ['Jasa cetak', 'Jasa foto, edit, dan pemasangan'].includes(selectedProduct.category.name);
+        
+        if (!isService && (quantity > selectedProduct.stock)) {
             alert(`Stok tidak mencukupi! Sisa stok: ${selectedProduct.stock}`);
             return;
         }
@@ -613,8 +681,8 @@
     function getCustomerTypeLabel() {
         const customerType = document.querySelector('select[name="customer_type"]').value;
         switch(customerType) {
-            case 'agen1': return 'Agen 1';
-            case 'agen2': return 'Agen 2';
+            case 'agen1': return 'Agen Reseller';
+            case 'agen2': return 'Agen Grosir';
             default: return 'Umum';
         }
     }
@@ -649,20 +717,30 @@
                 <tr>
                     <td>
                         <div class="font-medium">${item.name}</div>
-                        <div class="text-sm text-gray-600">${item.type_color || ''}</div>
+                        <div class="text-xs text-gray-500">${item.type_color || ''}</div>
                     </td>
-                    <td class="font-medium">Rp ${formatNumber(item.price)}</td>
+                    <td>
+                        <div class="flex items-center gap-1">
+                            <span class="text-xs font-medium">Rp</span>
+                            <input type="number" 
+                                   class="form-control text-sm p-1" 
+                                   style="width: 85px; font-weight: 500;" 
+                                   value="${item.price}" 
+                                   onchange="updatePrice(${index}, this.value)"
+                                   onkeyup="if(event.key === 'Enter') updatePrice(${index}, this.value)">
+                        </div>
+                    </td>
                     <td>
                         <div class="flex items-center gap-2">
-                            <button type="button" onclick="updateQuantity(${index}, -1)" class="btn btn-warning text-sm px-2">-</button>
-                            <span class="font-medium">${item.qty}</span>
-                            <button type="button" onclick="updateQuantity(${index}, 1)" class="btn btn-warning text-sm px-2">+</button>
+                            <button type="button" onclick="updateQuantity(${index}, -1)" class="btn btn-warning px-3 py-1 font-bold text-lg">-</button>
+                            <span class="font-bold text-base min-w-[20px] text-center">${item.qty}</span>
+                            <button type="button" onclick="updateQuantity(${index}, 1)" class="btn btn-warning px-3 py-1 font-bold text-lg">+</button>
                         </div>
                     </td>
                     <td class="font-medium">Rp ${formatNumber(item.subtotal)}</td>
                     <td>
-                        <button type="button" onclick="removeFromCart(${index})" class="btn btn-danger text-sm">
-                            Hapus
+                        <button type="button" onclick="removeFromCart(${index})" class="btn btn-danger btn-sm px-3">
+                            <i class="fas fa-trash"></i> Hapus
                         </button>
                     </td>
                 </tr>
@@ -672,12 +750,24 @@
             hiddenDiv.innerHTML += `
                 <input type="hidden" name="cart[${index}][id]" value="${item.id}">
                 <input type="hidden" name="cart[${index}][qty]" value="${item.qty}">
+                <input type="hidden" name="cart[${index}][price]" value="${item.price}">
             `;
         });
         
         // Add total amount hidden input
         hiddenDiv.innerHTML += `<input type="hidden" name="total_amount" value="${grandTotal}">`;
         totalAmount.textContent = `Rp ${formatNumber(grandTotal)}`;
+    }
+
+    function updatePrice(index, newPrice) {
+        newPrice = parseFloat(newPrice);
+        if (isNaN(newPrice) || newPrice < 0) {
+            newPrice = 0;
+        }
+        
+        cart[index].price = newPrice;
+        cart[index].subtotal = newPrice * cart[index].qty;
+        renderCart();
     }
     
     function updateQuantity(index, change) {
@@ -723,32 +813,100 @@
         renderCart();
     });
     
-    // Prevent form submission if cart is empty
-    document.getElementById('checkoutForm').addEventListener('submit', function(e) {
+    // Handle form submission via AJAX to prevent duplicates and clear state
+    document.getElementById('checkoutForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
         if (cart.length === 0) {
-            e.preventDefault();
-            alert("Keranjang belanja masih kosong!");
+            return alert("Keranjang belanja masih kosong!");
         }
         
         // Validate DP amount if DP is checked
         const isDP = document.getElementById('is_dp').checked;
         if (isDP) {
             const dpAmount = parseFloat(document.getElementById('down_payment').value) || 0;
-            const totalAmount = calculateTotalAmount();
+            const total = calculateTotalAmount();
             
-            if (dpAmount <= 0) {
-                e.preventDefault();
-                alert("Jumlah DP harus lebih dari 0!");
-                return;
+            if (dpAmount <= 0) return alert("Jumlah DP harus lebih dari 0!");
+            if (dpAmount >= total) return alert("Jumlah DP tidak boleh sama atau melebihi total harga!");
+        }
+
+        const checkoutBtn = document.getElementById('checkoutButton');
+        const originalText = checkoutBtn.innerHTML;
+        
+        // Anti-duplicate: disable button immediately
+        checkoutBtn.disabled = true;
+        checkoutBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> MEMPROSES...';
+
+        try {
+            const formData = new FormData(this);
+            const response = await fetch(this.action, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                // CSRF token is already included in FormData
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Clear state & Reset form
+                cart = [];
+                renderCart();
+                this.reset();
+                toggleDPField(); // Ensure DP fields are hidden
+                
+                // Show log details in modal like in history view
+                const transactionId = data.transaction_id || data.redirect_url.split('/').pop();
+                viewTransactionDetails(transactionId);
+            } else {
+                checkoutBtn.disabled = false;
+                checkoutBtn.innerHTML = originalText;
+                alert('GAGAL: ' + (data.message || 'Terjadi kesalahan sistem'));
             }
-            
-            if (dpAmount >= totalAmount) {
-                e.preventDefault();
-                alert("Jumlah DP tidak boleh sama atau melebihi total harga!");
-                return;
-            }
+        } catch (error) {
+            console.error(error);
+            checkoutBtn.disabled = false;
+            checkoutBtn.innerHTML = originalText;
+            alert('Kesalahan jaringan. Silakan coba lagi.');
         }
     });
+
+    window.currentTransactionId = null;
+    window.resizeIframe = function(obj) {
+        obj.style.height = (obj.contentWindow.document.documentElement.scrollHeight + 50) + 'px';
+    };
+
+    window.viewTransactionDetails = function(transactionId) {
+        window.currentTransactionId = transactionId;
+        const content = document.getElementById('transactionDetailsContent');
+        content.innerHTML = `
+            <iframe 
+                src="/transaksi/struk-iframe/${transactionId}" 
+                style="width: 100%; border: none; overflow: auto;"
+                frameborder="0"
+                allowfullscreen
+                onload="resizeIframe(this)"
+            ></iframe>`;
+        openModal('transactionDetailsModal');
+    };
+
+    window.printTransactionDetails = function() {
+        if (!window.currentTransactionId) return alert('Tidak ada transaksi yang dipilih');
+        const printWindow = window.open(`/transaksi/struk-iframe/${window.currentTransactionId}`, '_blank');
+        printWindow.onload = () => {
+            printWindow.print();
+        };
+    };
+
+    window.closeTransactionModal = function() {
+        closeModal('transactionDetailsModal');
+        // Reload to completely clear the view as requested: "menghilangkan formnya"
+        location.reload();
+    };
     
     // Toggle DP field visibility
     function toggleDPField() {

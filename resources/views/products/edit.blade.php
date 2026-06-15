@@ -39,23 +39,26 @@
             
             <div class="form-group">
                 <label>Nama Produk *</label>
-                <input type="text" name="name" value="{{ $product->name }}" required>
+                <input type="text" name="name" value="{{ $product->name }}" required {{ Auth::user()->role === 'staff gudang' ? 'readonly style="background-color: #f0f0f0;"' : '' }}>
             </div>
             <div class="form-group">
                 <label>Kategori *</label>
-                <select name="category_id" required>
+                <select name="category_id" required {{ Auth::user()->role === 'staff gudang' ? 'disabled style="background-color: #f0f0f0;"' : '' }}>
                     @foreach($categories as $cat)
                         <option value="{{ $cat->id }}" {{ $product->category_id == $cat->id ? 'selected' : '' }}>{{ $cat->name }}</option>
                     @endforeach
                 </select>
+                @if(Auth::user()->role === 'staff gudang')
+                    <input type="hidden" name="category_id" value="{{ $product->category_id }}">
+                @endif
             </div>
             <div class="form-group">
                 <label>Tipe/Warna (Opsional)</label>
-                <input type="text" name="type_color" value="{{ $product->type_color }}" placeholder="Contoh: Merah, 4R, Gold">
+                <input type="text" name="type_color" value="{{ $product->type_color }}" placeholder="Contoh: Merah, 4R, Gold" {{ Auth::user()->role === 'staff gudang' ? 'readonly style="background-color: #f0f0f0;"' : '' }}>
             </div>
             <div class="form-group">
                 <label>Barcode (Opsional)</label>
-                <input type="text" name="barcode" value="{{ $product->barcode }}" placeholder="Kode barcode">
+                <input type="text" name="barcode" value="{{ $product->barcode }}" placeholder="Kode barcode" {{ Auth::user()->role === 'staff gudang' ? 'readonly style="background-color: #f0f0f0;"' : '' }}>
             </div>
             
             <h3>Manajemen Stok</h3>
@@ -93,15 +96,15 @@
                 @endif
                 <div class="form-group">
                     <label>Harga Umum *</label>
-                    <input type="number" name="price_general" value="{{ $product->price_general }}" step="0.01" min="0" required>
+                    <input type="number" name="price_general" value="{{ $product->price_general }}" step="0.01" min="0" required {{ Auth::user()->role === 'staff gudang' ? 'readonly style="background-color: #f0f0f0;"' : '' }}>
                 </div>
                 <div class="form-group">
-                    <label>Harga Agen 1 *</label>
-                    <input type="number" name="price_agent1" value="{{ $product->price_agent1 }}" step="0.01" min="0" required>
+                    <label>Harga Reseller *</label>
+                    <input type="number" name="price_agent1" value="{{ $product->price_agent1 }}" step="0.01" min="0" required {{ Auth::user()->role === 'staff gudang' ? 'readonly style="background-color: #f0f0f0;"' : '' }}>
                 </div>
                 <div class="form-group">
-                    <label>Harga Agen 2 *</label>
-                    <input type="number" name="price_agent2" value="{{ $product->price_agent2 }}" step="0.01" min="0" required>
+                    <label>Harga Grosir *</label>
+                    <input type="number" name="price_agent2" value="{{ $product->price_agent2 }}" step="0.01" min="0" required {{ Auth::user()->role === 'staff gudang' ? 'readonly style="background-color: #f0f0f0;"' : '' }}>
                 </div>
             </div>
 

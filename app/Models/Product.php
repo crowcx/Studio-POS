@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class Product extends Model
 {
     protected $guarded = [];
+    protected $appends = ['display_stock', 'stock_status_class'];
+    protected $with = ['category']; // Selalu load kategori agar isServiceProduct bekerja di JSON
 
     // Helper untuk mendapatkan harga berdasarkan tipe customer
     public function getPriceForCustomer($type)

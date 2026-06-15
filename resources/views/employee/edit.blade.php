@@ -78,6 +78,18 @@
                     <label class="form-label" for="pin_confirmation">Konfirmasi PIN Baru</label>
                     <input type="password" id="pin_confirmation" name="pin_confirmation" class="form-control" minlength="4" maxlength="6">
                 </div>
+                
+                <div class="form-group md:col-span-2">
+                    <label class="form-label" for="role">Role Karyawan</label>
+                    <select id="role" name="role" class="form-control" required>
+                        <option value="employee" {{ old('role', $user->role) == 'employee' ? 'selected' : '' }}>Kasir</option>
+                        <option value="staff gudang" {{ old('role', $user->role) == 'staff gudang' ? 'selected' : '' }}>Staff Gudang (Manager Produk)</option>
+                        <option value="admin" {{ old('role', $user->role) == 'admin' ? 'selected' : '' }}>Admin</option>
+                    </select>
+                    @error('role')
+                        <div class="text-red-600 text-sm mt-1">{{ $message }}</div>
+                    @enderror
+                </div>
             </div>
             
             <div class="flex gap-2 mt-8">

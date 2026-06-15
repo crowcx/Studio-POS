@@ -8,7 +8,7 @@
     <!-- Font Awesome Local -->
     <link rel="stylesheet" href="{{ asset('fontawesome/css/all.min.css') }}">
     <!-- Main CSS -->
-    <link rel="stylesheet" href="{{ asset('css/app-styles.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/app-styles.min.css') }}?v={{ filemtime(public_path('css/app-styles.min.css')) }}">
     @stack('styles')
 </head>
 <body>
@@ -57,6 +57,23 @@
                     <a href="{{ route('employee.index') }}" class="nav-item {{ request()->is('karyawan*') ? 'active' : '' }}">
                         <span class="nav-icon"><i class="fas fa-users"></i></span>
                         <span class="nav-text">Manajemen Karyawan</span>
+                    </a>
+                    
+                    <a href="{{ route('audit_logs.index') }}" class="nav-item {{ request()->is('audit-logs*') ? 'active' : '' }}">
+                        <span class="nav-icon"><i class="fas fa-clipboard-list"></i></span>
+                        <span class="nav-text">Audit Log</span>
+                    </a>
+                    
+                    @if(Auth::user()->username === 'admin')
+                    <a href="{{ route('server-panel.index') }}" class="nav-item {{ request()->is('server-panel*') ? 'active' : '' }}">
+                        <span class="nav-icon"><i class="fas fa-server"></i></span>
+                        <span class="nav-text">Server Panel</span>
+                    </a>
+                    @endif
+                    
+                    <a href="{{ route('backup.index') }}" class="nav-item {{ request()->is('backup*') ? 'active' : '' }}">
+                        <span class="nav-icon"><i class="fas fa-database"></i></span>
+                        <span class="nav-text">Backup & Restore</span>
                     </a>
                 @endif
                 

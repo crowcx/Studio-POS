@@ -125,7 +125,7 @@
                         </th>
                         <th>
                             <button type="button" class="sort-btn" data-sort="price_agent1" data-direction="{{ request('sort') == 'price_agent1_asc' ? 'asc' : (request('sort') == 'price_agent1_desc' ? 'desc' : '') }}">
-                                Harga Agen 1
+                                Harga Reseller
                                 <span class="sort-icon">
                                     @if(request('sort') == 'price_agent1_asc') ↑
                                     @elseif(request('sort') == 'price_agent1_desc') ↓
@@ -135,7 +135,7 @@
                         </th>
                         <th>
                             <button type="button" class="sort-btn" data-sort="price_agent2" data-direction="{{ request('sort') == 'price_agent2_asc' ? 'asc' : (request('sort') == 'price_agent2_desc' ? 'desc' : '') }}">
-                                Harga Agen 2
+                                Harga Grosir
                                 <span class="sort-icon">
                                     @if(request('sort') == 'price_agent2_asc') ↑
                                     @elseif(request('sort') == 'price_agent2_desc') ↓
@@ -143,7 +143,9 @@
                                 </span>
                             </button>
                         </th>
+                        @if(Auth::user()->role !== 'employee')
                         <th width="150">Aksi</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody>
@@ -155,12 +157,21 @@
                             @if($product->barcode)
                             <div class="text-xs text-gray-500">Barcode: {{ $product->barcode }}</div>
                             @endif
+                            @php
+                                $authorName = $product->last_edited_by ?? 'System/Deleted';
+                            @endphp
+                            <div class="text-xs text-gray-400 mt-1" style="font-size: 10px;">
+                                Dimodif: {!! $authorName === 'System/Deleted' ? '<em>System/Deleted</em>' : $authorName !!} ({{ $product->updated_at->format('d/m/y H:i') }})
+                            </div>
                         </td>
                         <td>{{ $product->category->name }}</td>
                         <td>
                             <span class="font-medium {{ $product->stock_status_class }}">
                                 {{ $product->display_stock }}
                             </span>
+                            @if($product->previous_stock !== null)
+                            <div class="text-xs text-gray-400" style="font-size: 10px;">Stok seb.: {{ $product->previous_stock }}</div>
+                            @endif
                             @if(!$product->isServiceProduct())
                                 @if($product->stock <= 5)
                                 <div class="text-xs text-red-500">Stok rendah!</div>
@@ -177,6 +188,7 @@
                         <td class="font-medium">Rp {{ number_format($product->price_general, 0, ',', '.') }}</td>
                         <td class="font-medium">Rp {{ number_format($product->price_agent1, 0, ',', '.') }}</td>
                         <td class="font-medium">Rp {{ number_format($product->price_agent2, 0, ',', '.') }}</td>
+                        @if(Auth::user()->role !== 'employee')
                         <td>
                             <div class="flex gap-2">
                                 <button type="button" class="btn btn-warning text-sm" onclick="editProduct({{ $product->id }})">
@@ -188,6 +200,7 @@
                                 </form>
                             </div>
                         </td>
+                        @endif
                     </tr>
                     @endforeach
                 </tbody>
@@ -264,12 +277,12 @@
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">Harga Agen 1 *</label>
+                        <label class="form-label">Harga Reseller *</label>
                         <input type="number" name="price_agent1" class="form-control" step="0.01" min="0" required>
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">Harga Agen 2 *</label>
+                        <label class="form-label">Harga Grosir *</label>
                         <input type="number" name="price_agent2" class="form-control" step="0.01" min="0" required>
                     </div>
                 </div>
@@ -302,27 +315,30 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="form-group">
                         <label class="form-label">Nama Produk *</label>
-                        <input type="text" name="name" id="edit_name" class="form-control" required>
+                        <input type="text" name="name" id="edit_name" class="form-control" required {{ Auth::user()->role === 'staff gudang' ? 'readonly style="background-color: #f0f0f0;"' : '' }}>
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label">Kategori *</label>
-                        <select name="category_id" id="edit_category_id" class="form-control" required>
+                        <select name="category_id" id="edit_category_id" class="form-control" required {{ Auth::user()->role === 'staff gudang' ? 'disabled style="background-color: #f0f0f0;"' : '' }}>
                             <option value="">Pilih Kategori</option>
                             @foreach($categories as $category)
                             <option value="{{ $category->id }}">{{ $category->name }}</option>
                             @endforeach
                         </select>
+                        @if(Auth::user()->role === 'staff gudang')
+                            <input type="hidden" name="category_id" id="edit_category_id_hidden">
+                        @endif
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label">Tipe/Warna (Opsional)</label>
-                        <input type="text" name="type_color" id="edit_type_color" class="form-control" placeholder="Contoh: Merah, 4R, Gold">
+                        <input type="text" name="type_color" id="edit_type_color" class="form-control" placeholder="Contoh: Merah, 4R, Gold" {{ Auth::user()->role === 'staff gudang' ? 'readonly style="background-color: #f0f0f0;"' : '' }}>
                     </div>
                     
                     <div class="form-group">
                         <label class="form-label">Barcode (Opsional)</label>
-                        <input type="text" name="barcode" id="edit_barcode" class="form-control" placeholder="Kode barcode">
+                        <input type="text" name="barcode" id="edit_barcode" class="form-control" placeholder="Kode barcode" {{ Auth::user()->role === 'staff gudang' ? 'readonly style="background-color: #f0f0f0;"' : '' }}>
                     </div>
                     
                     <div class="form-group">
@@ -352,17 +368,17 @@
                     
                     <div class="form-group">
                         <label class="form-label">Harga Umum *</label>
-                        <input type="number" name="price_general" id="edit_price_general" class="form-control" step="0.01" min="0" required>
+                        <input type="number" name="price_general" id="edit_price_general" class="form-control" step="0.01" min="0" required {{ Auth::user()->role === 'staff gudang' ? 'readonly style="background-color: #f0f0f0;"' : '' }}>
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">Harga Agen 1 *</label>
-                        <input type="number" name="price_agent1" id="edit_price_agent1" class="form-control" step="0.01" min="0" required>
+                        <label class="form-label">Harga Reseller *</label>
+                        <input type="number" name="price_agent1" id="edit_price_agent1" class="form-control" step="0.01" min="0" required {{ Auth::user()->role === 'staff gudang' ? 'readonly style="background-color: #f0f0f0;"' : '' }}>
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label">Harga Agen 2 *</label>
-                        <input type="number" name="price_agent2" id="edit_price_agent2" class="form-control" step="0.01" min="0" required>
+                        <label class="form-label">Harga Grosir *</label>
+                        <input type="number" name="price_agent2" id="edit_price_agent2" class="form-control" step="0.01" min="0" required {{ Auth::user()->role === 'staff gudang' ? 'readonly style="background-color: #f0f0f0;"' : '' }}>
                     </div>
                 </div>
             </div>
@@ -770,6 +786,13 @@
             // Populate the modal form
             document.getElementById('edit_name').value = tempDiv.querySelector('input[name="name"]')?.value || '';
             document.getElementById('edit_category_id').value = selectedCategoryId;
+            
+            // Populate hidden category if it exists (for staff gudang)
+            const hiddenCategory = document.getElementById('edit_category_id_hidden');
+            if (hiddenCategory) {
+                hiddenCategory.value = selectedCategoryId;
+            }
+
             document.getElementById('edit_type_color').value = tempDiv.querySelector('input[name="type_color"]')?.value || '';
             document.getElementById('edit_barcode').value = tempDiv.querySelector('input[name="barcode"]')?.value || '';
             document.getElementById('edit_current_stock').value = currentStock;
